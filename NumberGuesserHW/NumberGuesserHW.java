@@ -49,6 +49,7 @@ public class NumberGuesserHW {
 	private void processCommands(String message) {
 		if (message.equalsIgnoreCase("quit")) {
 			System.out.println("Tired of playing? No problem, see you next time.");
+			saveLevel();
 			isRunning = false;
 		}
 	}
@@ -90,7 +91,8 @@ public class NumberGuesserHW {
 
 	private void saveLevel() {
 		try (FileWriter fw = new FileWriter(saveFile)) {
-			fw.write("" + level);// here we need to convert it to a String to record correctly
+			fw.write("" + level + " " + strikes + " " + number); // here we need to convert it to a String to record
+																	// correctly
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -105,6 +107,14 @@ public class NumberGuesserHW {
 		try (Scanner reader = new Scanner(file)) {
 			while (reader.hasNextLine()) {
 				int _level = reader.nextInt();
+				int StrikeCount = reader.nextInt();
+				int _num = reader.nextInt();
+				strikes = StrikeCount;
+
+				if (_num > 0) {
+					number = _num;
+				}
+
 				if (_level > 1) {
 					level = _level;
 					break;
@@ -123,12 +133,28 @@ public class NumberGuesserHW {
 	void run() {
 		try (Scanner input = new Scanner(System.in);) {
 			System.out.println("Welcome to Number Guesser 4.0!");
+
 			System.out.println("I'll ask you to guess a number between a range, and you'll have " + maxStrikes
 					+ " attempts to guess.");
 			if (loadLevel()) {
-				System.out.println("Successfully loaded level " + level + " let's continue then");
+				System.out.println("Want to restart? Enter Y/N");
+				String restart = input.nextLine();
+
+				if (restart.equals("Y") || restart.equals("y")) {
+					level = 1;
+					strikes = 0;
+					number = getNumber(level);
+					System.out.println("Ok! Restarting at level 1.");
+					System.out.println("Successfully loaded level " + level + " with " + strikes + " strikes, let's continue then.");
+					
+				} else {
+					System.out.println("Ok! Not restarting.");
+					System.out.println("Successfully loaded level " + level + " with " + strikes + " strikes, let's continue then.");
+				}
+			} else {
+				number = getNumber(level);
 			}
-			number = getNumber(level);
+
 			isRunning = true;
 			while (input.hasNext()) {
 				String message = input.nextLine();
@@ -147,7 +173,7 @@ public class NumberGuesserHW {
 	}
 
 	public static void main(String[] args) {
-		NumberGuesserPart4 guesser = new NumberGuesserPart4();
+		NumberGuesserHW guesser = new NumberGuesserHW();
 		guesser.run();
 	}
 }
