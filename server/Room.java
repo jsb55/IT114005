@@ -15,6 +15,7 @@ public class Room implements AutoCloseable {
 	private final static String COMMAND_TRIGGER = "/";
 	private final static String CREATE_ROOM = "createroom";
 	private final static String JOIN_ROOM = "joinroom";
+	private final static String FLIP = "flip";
 
 	public Room(String name) {
 		this.name = name;
@@ -93,8 +94,8 @@ public class Room implements AutoCloseable {
 	 * @param client  The sender of the message (since they'll be the ones
 	 *                triggering the actions)
 	 */
-	private boolean processCommands(String message, ServerThread client) {
-		boolean wasCommand = false;
+	protected String processCommands(String message, ServerThread client) {
+		String response = null;
 		try {
 			if (message.indexOf(COMMAND_TRIGGER) > -1) {
 				String[] comm = message.split(COMMAND_TRIGGER);
@@ -112,19 +113,28 @@ public class Room implements AutoCloseable {
 					if (server.createNewRoom(roomName)) {
 						joinRoom(roomName, client);
 					}
-					wasCommand = true;
 					break;
 				case JOIN_ROOM:
 					roomName = comm2[1];
 					joinRoom(roomName, client);
-					wasCommand = true;
 					break;
+				case FLIP:
+					String coin = "";
+					if (Math.random() < 0.5) {
+						coin = "Heads";
+					} else {
+						coin = "Tails";
+					}
+					response = coin;
+					break;
+
 				}
 			}
+
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
-		return wasCommand;
+		return response;
 	}
 
 	// TODO changed from string to ServerThread
@@ -150,12 +160,15 @@ public class Room implements AutoCloseable {
 	 */
 	protected void sendMessage(ServerThread sender, String message) {
 		log.log(Level.INFO, getName() + ": Sending message to " + clients.size() + " clients");
-		if (processCommands(message, sender)) {
-			// it was a command, don't broadcast
-			return;
+		String response = processCommands(message, sender);
+		if (response != null) {
+			message = response;
 		}
+
 		Iterator<ServerThread> iter = clients.iterator();
+
 		while (iter.hasNext()) {
+
 			ServerThread client = iter.next();
 			boolean messageSent = client.send(sender.getClientName(), message);
 			if (!messageSent) {
@@ -169,6 +182,10 @@ public class Room implements AutoCloseable {
 	 * Will attempt to migrate any remaining clients to the Lobby room. Will then
 	 * set references to null and should be eligible for garbage collection
 	 */
+	public List<String> getRooms() {
+		return server.getRooms();
+	}
+
 	@Override
 	public void close() throws Exception {
 		int clientCount = clients.size();
