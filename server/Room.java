@@ -3,6 +3,7 @@ package server;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Random;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -16,6 +17,10 @@ public class Room implements AutoCloseable {
 	private final static String CREATE_ROOM = "createroom";
 	private final static String JOIN_ROOM = "joinroom";
 	private final static String FLIP = "flip";
+	private final static String ROLL = "roll";
+	private final static String MUTE = "mute";
+	private final static String UNMUTE = "unmute";
+	private final static String PRIVATE = "@";
 
 	public Room(String name) {
 		this.name = name;
@@ -121,16 +126,39 @@ public class Room implements AutoCloseable {
 				case FLIP:
 					String coin = "";
 					if (Math.random() < 0.5) {
-						coin = "Heads";
+						coin = "<b style=color:green> Flipped heads</b>";
 					} else {
-						coin = "Tails";
+						coin = "<b style=color:purple> Flipped tails</b>";
 					}
 					response = coin;
 					break;
+				case ROLL:
+					String[] dice = new String[] { "1", "2", "3", "4", "5", "6" };
+					Random random = new Random();
+					int index = random.nextInt(dice.length);
+					String toString = Integer.toString(index);
+					String rollResult = "<b style=color:red> Rolled " + toString + "</b>";
+					response = rollResult;
+				case MUTE:
+					String[] muteArray = comm2[1].split(PRIVATE);
+					String muteUser = muteArray[1];
+					if (!client.clientMuteList.contains(muteUser)) {
+						client.clientMuteList.add(muteUser);
+						clientMute(client, muteUser);
+						break;
+					}
+				case UNMUTE:
+					String[] unMuteArray = comm2[1].split(PRIVATE);
+					String unMuteUser = unMuteArray[1];
+					if (client.clientMuteList.contains(unMuteUser)) {
+						client.clientMuteList.remove(unMuteUser);
+						clientUnmute(client, unMuteUser);
+					}
+					break;
 
 				}
-			}
 
+			}
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -150,6 +178,30 @@ public class Room implements AutoCloseable {
 		}
 	}
 
+	protected void clientMute(ServerThread client, String reciever) {
+		Iterator<ServerThread> iter = clients.iterator();
+		while (iter.hasNext()) {
+			ServerThread a = iter.next();
+
+			if (a.getClientName().equals(reciever)) {
+				a.send(client.getClientName(),
+						" <b style=color:red><i>has muted you. The user will be unable to see your messages.</i></b>");
+			}
+		}
+	}
+
+	protected void clientUnmute(ServerThread client, String reciever) {
+		Iterator<ServerThread> iter = clients.iterator();
+		while (iter.hasNext()) {
+			ServerThread a = iter.next();
+
+			if (a.getClientName().equals(reciever)) {
+				a.send(client.getClientName(),
+						" <b style=color:red><i>has unmuted you. The user will now be able to see your messages.</i></b>");
+			}
+		}
+	}
+
 	/***
 	 * Takes a sender and a message and broadcasts the message to all clients in
 	 * this room. Client is mostly passed for command purposes but we can also use
@@ -165,23 +217,37 @@ public class Room implements AutoCloseable {
 			message = response;
 		}
 
+		boolean privateMessage = false;
+		String recipient = "";
+		try {
+			if (message.startsWith("@")) {
+				int pm = message.indexOf(" ");
+				privateMessage = true;
+				recipient = message.substring(1, pm);
+				message = "<b style=color:blue> <u>*Private*</b></u> " + message.substring(pm);
+			}
+		} catch (Exception d) {
+
+			log.log(Level.INFO, "Input invalid");
+
+			return;
+		}
+
 		Iterator<ServerThread> iter = clients.iterator();
 
 		while (iter.hasNext()) {
-
 			ServerThread client = iter.next();
-			boolean messageSent = client.send(sender.getClientName(), message);
-			if (!messageSent) {
-				iter.remove();
-				log.log(Level.INFO, "Removed client " + client.getId());
+			if (!client.isMuted(sender.getClientName()) && !privateMessage || client.getClientName().equals(recipient)
+					|| sender.getClientName().equals(client.getClientName())) {
+				boolean messageSent = client.send(sender.getClientName(), message);
+				if (!messageSent) {
+					iter.remove();
+					log.log(Level.INFO, "Removed client" + client.getId());
+				}
 			}
 		}
 	}
 
-	/***
-	 * Will attempt to migrate any remaining clients to the Lobby room. Will then
-	 * set references to null and should be eligible for garbage collection
-	 */
 	public List<String> getRooms() {
 		return server.getRooms();
 	}
