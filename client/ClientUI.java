@@ -9,6 +9,7 @@ import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -25,6 +26,7 @@ import javax.swing.JLabel;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollBar;
 import javax.swing.JScrollPane;
@@ -91,7 +93,7 @@ public class ClientUI extends JFrame implements Event {
 		panel.add(hostLabel);
 		panel.add(host);
 		JLabel portLabel = new JLabel("Port:");
-		JTextField port = new JTextField("3000");
+		JTextField port = new JTextField("3002");
 		panel.add(portLabel);
 		panel.add(port);
 		JButton button = new JButton("Next");
@@ -184,9 +186,23 @@ public class ClientUI extends JFrame implements Event {
 			}
 
 		});
+
+		JButton export = new JButton("Export");
+		export.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent export) {
+				exportChat();
+			}
+		});
+
 		input.add(button);
+		input.add(export);
 		panel.add(input, BorderLayout.SOUTH);
 		this.add(panel, "lobby");
+	}
+
+	public static void infoBox(String infoMessage, String titleBar) {
+		JOptionPane.showMessageDialog(null, infoMessage, "InfoBox: " + titleBar, JOptionPane.INFORMATION_MESSAGE);
 	}
 
 	void createPanelUserList() {
@@ -361,4 +377,28 @@ public class ClientUI extends JFrame implements Event {
 			pack();
 		}
 	}
+
+	public void exportChat() {
+		long millis = System.currentTimeMillis();
+		java.sql.Date date = new java.sql.Date(millis);
+		try (FileWriter file = new FileWriter(self.getTitle() + " - " + date + ".txt")) {
+			int c = textArea.getComponentCount();
+			for (int i = 0; i < c; i++) {
+				JEditorPane chatText = (JEditorPane) textArea.getComponent(i);
+				if (chatText != null) {
+					String line = chatText.getText();
+					String[] array = line.split("<body>");
+					String[] arraySplit = array[1].split("</body>");
+					String arraySplit2 = arraySplit[0];
+					file.write("" + arraySplit2 + "\n");
+
+				}
+			}
+			infoBox("Chat history exported.", "Message");
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+
+	}
+
 }
